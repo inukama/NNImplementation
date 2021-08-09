@@ -5,6 +5,7 @@
 
 void ping();
 void ping(const char* st);
+void ping(int st);
 
 #endif
 

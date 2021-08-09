@@ -9,3 +9,8 @@ void ping(const char* st) {
     static int count = 0;
     std::cout << st << " " << ++count << std::endl;
 }
+
+void ping(int st) {
+    static int count = 0;
+    std::cout << st << " " << ++count << std::endl;
+}

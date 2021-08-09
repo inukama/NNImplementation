@@ -22,6 +22,8 @@ class NeuralNetwork{
 
         // An STL vector which contains the value of each neuron of each layer before it is passed through the activation function
         std::vector<Eigen::MatrixXf*> midLayers;
+        // Same as midLayers, but also has a bias unit
+        std::vector<Eigen::MatrixXf*> midBLayers;
 
     public:
         /*

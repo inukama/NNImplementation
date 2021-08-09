@@ -106,16 +106,16 @@ int NeuralNetwork::backProp() {
         *this->costs[L-1] = (*this->layers[L-1] - this->Y->row(i)).matrix();
         ping("Ap");
         for(int k = L-2 ; k > 1 ; k--) {
-            NNM::size(*this->costs[k]);
-            NNM::size(*this->costs[k+1] * *this->weights[k]);
-            NNM::size(this->midLayers[k]->unaryExpr(&NNM::sigmoidp));
-
-            *this->costs[k] = ((*this->costs[k+1] * *this->weights[k]).array() * this->midLayers[k]->unaryExpr(&NNM::sigmoidp).array()).matrix();
-            NNM::size(*this->costs[k]);
+            *this->costs[k] = ((*this->costs[k+1] * *this->weights[k]).array() * this->midBLayers[k]->unaryExpr(&NNM::sigmoidp).array()).matrix();
         }
         ping("CCOCKOCKCO");
         for(int k = 0 ; k < L-1 ; k++) {
-            *this->delta[k] +=  this->costs[k+1]->transpose() * *this->layers[k];
+            std::cout << "k: " << k << std::endl;
+            NNM::size(*this->delta[k]);
+            NNM::size(this->bLayers[k]->transpose());
+            NNM::size(this->layers[k]->transpose());
+            NNM::size(*this->costs[k+1]);
+            *this->delta[k] +=  this->bLayers[k]->transpose() * *this->costs[k+1];
             *gradients[k] = *delta[k]*this->mi;
         }
         ping();
@@ -129,9 +129,10 @@ int NeuralNetwork::backProp() {
 int NeuralNetwork::forwardProp() { // Performs forward propagation on the network, updating
     for(int currentLayer = 0 ; currentLayer < L-1 ; currentLayer++) {
         this->bLayers[currentLayer]->block(0,1,1,this->layerSizes[currentLayer]) = *this->layers[currentLayer];
-        *this->midLayers[currentLayer+1] = (*this->bLayers[currentLayer] * this->weights[currentLayer]->transpose());
-        *this->layers[currentLayer+1] = this->midLayers[currentLayer+1]->unaryExpr(&NNM::sigmoid);
-        this->bLayers[currentLayer+1]->block(0,1,1,this->layerSizes[currentLayer+1]) = *this->layers[currentLayer+1];
+        this->midBLayers[currentLayer+1]->block(0,1,1,this->layerSizes[currentLayer+1]) = (*this->bLayers[currentLayer] * this->weights[currentLayer]->transpose());
+        *this->layers[currentLayer+1] = this->midBLayers[currentLayer+1]->block(0,1,1,this->layerSizes[currentLayer+1]).unaryExpr(&NNM::sigmoid);
+        
+        //this->bLayers[currentLayer+1]->block(0,1,1,this->layerSizes[currentLayer+1]) = *this->layers[currentLayer+1];
     }
 
     return 0;
@@ -173,23 +174,26 @@ NeuralNetwork::NeuralNetwork(std::vector<int>& sl)
     this->layers.resize(L);
     this->bLayers.resize(L);
     this->midLayers.resize(L);
+    this->midBLayers.resize(L);
 
     for(int l = 0 ; l < this->L-1; l++) {
         this->weights[l] = new Eigen::MatrixXf(this->layerSizes[l+1], this->layerSizes[l]+1);
         this->gradients[l] = new Eigen::MatrixXf(this->layerSizes[l+1], this->layerSizes[l]+1);
 
         this->delta[l] = new Eigen::MatrixXf(this->layerSizes[l+1], this->layerSizes[l]+1);
-        this->costs[l+1] = new Eigen::MatrixXf(this->layerSizes[l+1], this->layerSizes[l]+1);
+        this->costs[l+1] = new Eigen::MatrixXf(1, this->layerSizes[l]+1);
 
         // Randomise weights to break symmetry
         this->weights[l]->setRandom();
     }
+    this->costs[this->L-1]->resize(1,this->layerSizes[this->L-1]);
 
     for(int l = 0 ; l < this->L; l++) {
         this->layers[l] = new Eigen::MatrixXf(1,layerSizes[l]);
         this->bLayers[l] = new Eigen::MatrixXf(1,layerSizes[l]+1);
         (*this->bLayers[l])(0) = 1;
         this->midLayers[l] = new Eigen::MatrixXf(1,layerSizes[l]);
+        this->midBLayers[l] = new Eigen::MatrixXf(1,layerSizes[l]+1);
     }
 }
 
@@ -210,6 +214,9 @@ NeuralNetwork::~NeuralNetwork() {
         (**it).resize(0,0);
     }
     for(std::vector<Eigen::MatrixXf*>::iterator it = this->midLayers.begin() ; it != this->midLayers.end() ; it++) {
+        (**it).resize(0,0);
+    }
+    for(std::vector<Eigen::MatrixXf*>::iterator it = this->midBLayers.begin() ; it != this->midBLayers.end() ; it++) {
         (**it).resize(0,0);
     }
     for(std::vector<Eigen::MatrixXf*>::iterator it = this->costs.begin()+1 ; it != this->costs.end() ; it++) {
