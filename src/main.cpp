@@ -11,6 +11,7 @@
 #include "network.h"
 #include "graphics.h"
 #include "utils.h"
+#include "read.h"
 
 int main()
 {
@@ -26,19 +27,7 @@ int main()
 	std::vector<float> Costs; // Tracks the cost associated with each pass	
 
     Eigen::MatrixXf X, Y;
-
-    X.resize(2,4);
-    Y.resize(1,4);
-
-    X.col(0) << 0., 0.;
-    X.col(1) << 0., 1.;
-    X.col(2) << 1., 0.;
-    X.col(3) << 1., 1.;
-
-    Y.col(0) << 1.;
-    Y.col(1) << 1.;
-    Y.col(2) << 0.;
-    Y.col(3) << 0.;
+    mnistToMatrix(X, Y, "resources/data/train-images-idx3-ubyte", "resources/data/train-labels-idx1-ubyte");
 
     std::vector<int> sl = {2, 20,76, 1};
     NeuralNetwork catDogClassifier(sl);
@@ -64,7 +53,7 @@ int main()
     for(int i = 0 ; i < iterations && !exitLoop ; i++ ) {
         catDogClassifier.gradientDescent();
 
-        catDogClassifier.alpha *= 1.0000;
+        catDogClassifier.alpha *= 1.00001;
 
         static float cc;
         cc = catDogClassifier.cost();

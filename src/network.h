@@ -38,7 +38,7 @@ class NeuralNetwork{
         int n = 0; // holds the amount of features
 
         // Hyper-Parameteres
-        float alpha = 0.1; // Learning rate
+        float alpha = 1; // Learning rate
         float lambda = 0; // Regularisation
 
         //Layered data

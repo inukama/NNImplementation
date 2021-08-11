@@ -12,6 +12,7 @@ add_executable(
     network.h       network.cpp
     graphics.h      graphics.cpp
     utils.h         utils.cpp
+    read.h          read.cpp
 )
 
 target_link_libraries(
