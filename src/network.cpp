@@ -19,6 +19,7 @@ void NeuralNetwork::gradientChecking() {
 }
 
 void NeuralNetwork::checkAll() {
+    /*
     std::cout << "Printing all layers\n";
     for(int l = 0 ; l < L ; l++) {
         for(int i = 0 ; i < this->layerSizes[l] ; i++) {
@@ -26,15 +27,17 @@ void NeuralNetwork::checkAll() {
         }
         std::cout << "\n";
     }
+    */
 
     std::cout << "Testing all training inputs\n";
 
     for(int i = 0 ; i < m ; i++) {
-        *this->layers[0] = this->X->row(i);
+        std::cout << "Training example i=" << this->m << std::endl;
+        *this->layers[0] = this->X->col(i);
         this->forwardProp();
         this->readLayer(0);
-        this->readLayer(this->L);
-        std::cout << "\n";
+        this->readLayer(this->L-1);
+        std::cout << std::endl;
     }
 }
 
@@ -52,13 +55,17 @@ float NeuralNetwork::cost() {
     */
     static Eigen::ArrayXf out = Eigen::ArrayXf(this->K);
     static float J;
+    
     J = 0;
 
     for(int i = 0 ; i < this->m ; i++) {
-        *this->layers[0] = this->X->row(i);
+        *this->layers[0] = this->X->col(i);
         forwardProp();
         out = this->layers[this->L-1]->array();
-        J += ((this->Y->row(i).array() * out.log()) + (1 - this->Y->row(i).array())*(1 - out).log()).sum();
+
+        J += ((this->Y->col(i).array() * out.log())+(1.0 - this->Y->col(i).array()) * ((1.0 - out).log())).sum();
+
+        //TODO: find a fix for perfect predictions (i.e. log(0))
     }
 
     return J*-this->mi;
@@ -87,9 +94,15 @@ float NeuralNetwork::cost(std::vector<Eigen::MatrixXf>& theta) {
 int NeuralNetwork::gradientDescent() {
     this->forwardProp();
     this->backProp();
+    static float max,prevmax = 0;
+    max = 0;
     for(int l = 0 ; l < L-1 ; l++) {
         *this->weights[l] -= alpha * *gradients[l];
+        if(gradients[l]->maxCoeff() > max) {
+            max = gradients[l]->maxCoeff();
+        }
     }
+    prevmax = max;
     
     return 0;
 }
@@ -100,25 +113,19 @@ int NeuralNetwork::backProp() {
     }
 
     for(int i = 0 ; i < this->m ; i++){
-        *this->layers[0] = this->X->row(i);
+        *this->layers[0] = this->X->col(i);
         this->forwardProp();
-        ping();
-        *this->costs[L-1] = (*this->layers[L-1] - this->Y->row(i)).matrix();
-        ping("Ap");
-        for(int k = L-2 ; k > 1 ; k--) {
-            *this->costs[k] = ((*this->costs[k+1] * *this->weights[k]).array() * this->midBLayers[k]->unaryExpr(&NNM::sigmoidp).array()).matrix();
+
+        *this->costs[L-1] = *this->layers[L-1] - this->Y->col(i);
+        *this->costs[L-2] = ((this->weights[this->L-2]->transpose() * *this->costs[this->L-1]).array() * this->midBLayers[this->L-2]->unaryExpr(&NNM::sigmoidp).array()).matrix();
+        for(int k = L-3 ; k > 0 ; k--) {
+            *this->costs[k] = ((this->weights[k]->transpose() * costs[k+1]->bottomRows(this->layerSizes[k+1])).array() * this->midBLayers[k]->unaryExpr(&NNM::sigmoidp).array()).matrix();
         }
-        ping("CCOCKOCKCO");
         for(int k = 0 ; k < L-1 ; k++) {
-            std::cout << "k: " << k << std::endl;
-            NNM::size(*this->delta[k]);
-            NNM::size(this->bLayers[k]->transpose());
-            NNM::size(this->layers[k]->transpose());
-            NNM::size(*this->costs[k+1]);
-            *this->delta[k] +=  this->bLayers[k]->transpose() * *this->costs[k+1];
+            *this->delta[k] += this->costs[k+1]->bottomRows(this->layerSizes[k+1]) * this->bLayers[k]->transpose();
             *gradients[k] = *delta[k]*this->mi;
         }
-        ping();
+
         for(int k = 0 ; k < this->L-2 ; k++) {
                         
         }
@@ -128,9 +135,9 @@ int NeuralNetwork::backProp() {
 
 int NeuralNetwork::forwardProp() { // Performs forward propagation on the network, updating
     for(int currentLayer = 0 ; currentLayer < L-1 ; currentLayer++) {
-        this->bLayers[currentLayer]->block(0,1,1,this->layerSizes[currentLayer]) = *this->layers[currentLayer];
-        this->midBLayers[currentLayer+1]->block(0,1,1,this->layerSizes[currentLayer+1]) = (*this->bLayers[currentLayer] * this->weights[currentLayer]->transpose());
-        *this->layers[currentLayer+1] = this->midBLayers[currentLayer+1]->block(0,1,1,this->layerSizes[currentLayer+1]).unaryExpr(&NNM::sigmoid);
+        this->bLayers[currentLayer]->bottomRows(this->layerSizes[currentLayer]) = *this->layers[currentLayer];
+        this->midBLayers[currentLayer+1]->bottomRows(this->layerSizes[currentLayer+1]) = (*this->weights[currentLayer] * *this->bLayers[currentLayer]);
+        *this->layers[currentLayer+1] = this->midBLayers[currentLayer+1]->block(1,0,this->layerSizes[currentLayer+1],1).unaryExpr(&NNM::sigmoid);
         
         //this->bLayers[currentLayer+1]->block(0,1,1,this->layerSizes[currentLayer+1]) = *this->layers[currentLayer+1];
     }
@@ -151,8 +158,8 @@ int NeuralNetwork::setTraining(Eigen::MatrixXf* inputs, Eigen::MatrixXf* outputs
     this->X = inputs;
     this->Y = outputs;
 
-    this->m = this->X->rows();
-    this->n = this->X->cols();
+    this->m = this->X->cols();
+    this->n = this->X->rows();
     this->mi = 1.0/(float)m;
     return 0;
 }
@@ -169,7 +176,7 @@ NeuralNetwork::NeuralNetwork(std::vector<int>& sl)
 
     // The first element of the following two are redundant, but are retained for ease of calculation
     this->costs.resize(L);
-    this->delta.resize(L);
+    this->delta.resize(L-1);
 
     this->layers.resize(L);
     this->bLayers.resize(L);
@@ -181,19 +188,20 @@ NeuralNetwork::NeuralNetwork(std::vector<int>& sl)
         this->gradients[l] = new Eigen::MatrixXf(this->layerSizes[l+1], this->layerSizes[l]+1);
 
         this->delta[l] = new Eigen::MatrixXf(this->layerSizes[l+1], this->layerSizes[l]+1);
-        this->costs[l+1] = new Eigen::MatrixXf(1, this->layerSizes[l]+1);
+        this->costs[l+1] = new Eigen::MatrixXf(this->layerSizes[l+1]+1,1);
 
         // Randomise weights to break symmetry
         this->weights[l]->setRandom();
     }
+
     this->costs[this->L-1]->resize(1,this->layerSizes[this->L-1]);
 
     for(int l = 0 ; l < this->L; l++) {
-        this->layers[l] = new Eigen::MatrixXf(1,layerSizes[l]);
-        this->bLayers[l] = new Eigen::MatrixXf(1,layerSizes[l]+1);
+        this->layers[l] = new Eigen::MatrixXf(layerSizes[l],1);
+        this->bLayers[l] = new Eigen::MatrixXf(layerSizes[l]+1,1);
         (*this->bLayers[l])(0) = 1;
-        this->midLayers[l] = new Eigen::MatrixXf(1,layerSizes[l]);
-        this->midBLayers[l] = new Eigen::MatrixXf(1,layerSizes[l]+1);
+        this->midLayers[l] = new Eigen::MatrixXf(layerSizes[l],1);
+        this->midBLayers[l] = new Eigen::MatrixXf(layerSizes[l]+1,1);
     }
 }
 

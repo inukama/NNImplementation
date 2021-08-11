@@ -18,7 +18,7 @@ int main()
 
     srand(time(NULL));
 
-    int iterations = 10000;
+    int iterations = 100000;
     std::vector<float> costs = {1};
 
 	std::mutex bufferLock; // Used to restrict the access to std::vector<float> Costs by each thread
@@ -27,32 +27,26 @@ int main()
 
     Eigen::MatrixXf X, Y;
 
-    X.resize(4,2);
-    Y.resize(4,1);
+    X.resize(2,4);
+    Y.resize(1,4);
 
-    X.row(0) << 0., 0.;
-    X.row(1) << 0., 1.;
-    X.row(2) << 1., 0.;
-    X.row(3) << 1., 1.;
+    X.col(0) << 0., 0.;
+    X.col(1) << 0., 1.;
+    X.col(2) << 1., 0.;
+    X.col(3) << 1., 1.;
 
-    Y.row(0) << 1.;
-    Y.row(1) << 0.;
-    Y.row(2) << 0.;
-    Y.row(3) << 0.;
+    Y.col(0) << 1.;
+    Y.col(1) << 1.;
+    Y.col(2) << 0.;
+    Y.col(3) << 0.;
 
-    std::vector<int> sl = {2, 3, 3, 1};
+    std::vector<int> sl = {2, 20,76, 1};
     NeuralNetwork catDogClassifier(sl);
-    
+
     catDogClassifier.setTraining(&X, &Y);   
 
-
-    *catDogClassifier.layers[0] = X.row(2);
-    catDogClassifier.forwardProp();
-    catDogClassifier.readLayer(0);
-    catDogClassifier.readLayer(catDogClassifier.L-1);
-
-
     std::cout << "Cost Before: " << catDogClassifier.cost() << "\n";
+    std::cout << "Beginning Training..." << std::endl << std::endl;
 
     
     std::thread graphing_thread( // Graphs data passed to it by the training thread via the Costs vector
@@ -65,10 +59,12 @@ int main()
 
     bool exitLoop = false;
 
+    Eigen::MatrixXf testmat = *catDogClassifier.weights[0];
+
     for(int i = 0 ; i < iterations && !exitLoop ; i++ ) {
-        ping();
         catDogClassifier.gradientDescent();
-        ping();
+
+        catDogClassifier.alpha *= 1.0000;
 
         static float cc;
         cc = catDogClassifier.cost();
@@ -78,7 +74,11 @@ int main()
         bufferLock.unlock();
 
         if(std::isnan(cc)) {
-            std::cout << "NaN detected. Aborting" << std::endl; 
+            std::cout << "NaN detected. Aborting at alpha = " << catDogClassifier.alpha << std::endl;
+            exitLoop = true;
+        }
+        if(cc <= 0.000001) {
+            std::cout << "Gradient descent has converged. Exiting." << std::endl;
             exitLoop = true;
         }
     }
@@ -87,15 +87,15 @@ int main()
     exit = true;
     exitLock.unlock();
     
+    std::cout << "Training ended" << std::endl;
     std::cout << "Cost After: " << catDogClassifier.cost() << "\n";
 
 	std::cout << "Joining graphing_thread" << std::endl;
 	graphing_thread.join();
 
-    *catDogClassifier.layers[0] = X.row(0);
-    catDogClassifier.forwardProp();
-    catDogClassifier.readLayer(0);
-    catDogClassifier.readLayer(catDogClassifier.L-1);
+    catDogClassifier.checkAll();
+
+    std::cout << "Ending program" << std::endl;
     
     return 0;
 }
