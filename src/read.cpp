@@ -6,6 +6,8 @@
 #include "eigen3/Eigen/Core"
 #include "eigen3/Eigen/StdVector"
 
+#include "nmath.h"
+
 void mnistToMatrix(Eigen::MatrixXf& X, Eigen::MatrixXf& Y, const char* imageSetLocation, const char* labelLocation) {
     std::ifstream images(imageSetLocation, std::ios::in | std::ios::binary);
     
@@ -45,8 +47,9 @@ void mnistToMatrix(Eigen::MatrixXf& X, Eigen::MatrixXf& Y, const char* imageSetL
 
     Eigen::Map<Eigen::MatrixXf> X1(fBuf, exampleSize, amtImgs);
     X.resize(exampleSize, amtImgs);
-    X = X1.transpose(); // Avoid going out of scope
-    
+    X = X1; // Avoid going out of scope
+
+    NNM::size(X);
     std::free(fBuf);
     std::free(cBuf);
 
@@ -60,12 +63,14 @@ void mnistToMatrix(Eigen::MatrixXf& X, Eigen::MatrixXf& Y, const char* imageSetL
     std::cout << "amtLabels = " << amtLabels << std::endl;
 
     unsigned char* cBufL = (unsigned char*)malloc(amtLabels);
-    Y.resize(amtLabels,10);
+    labels.seekg(sizeof(uint32_t)*2);
+    labels.read((char*)cBufL, amtLabels);
+    Y.resize(10,amtLabels);
     Y.setZero();
+
     for(int i = 0 ; i < amtLabels ; i++) {
-        Y(i,(int)cBufL[i]) = 1.0;
+        Y((unsigned int)cBufL[i],i) = 1.0;
     }
 
-    labels.seekg(2*sizeof(uint32_t));
-    labels.read(reinterpret_cast<char*>(&amtLabels), sizeof(uint32_t));
+
 }

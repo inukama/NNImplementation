@@ -23,13 +23,11 @@ int main()
     std::vector<float> costs = {1};
 
 	std::mutex bufferLock; // Used to restrict the access to std::vector<float> Costs by each thread
-	std::mutex exitLock; // For bool exit
-	std::vector<float> Costs; // Tracks the cost associated with each pass	
+	std::mutex exitLock; // For bool exit	
 
     Eigen::MatrixXf X, Y;
     mnistToMatrix(X, Y, "resources/data/train-images-idx3-ubyte", "resources/data/train-labels-idx1-ubyte");
-
-    std::vector<int> sl = {2, 20,76, 1};
+    std::vector<int> sl = {784, 20,76, 10};
     NeuralNetwork catDogClassifier(sl);
 
     catDogClassifier.setTraining(&X, &Y);   
@@ -50,6 +48,7 @@ int main()
 
     Eigen::MatrixXf testmat = *catDogClassifier.weights[0];
 
+    std::cout << "Beginning gradient descent" << std::endl;
     for(int i = 0 ; i < iterations && !exitLoop ; i++ ) {
         catDogClassifier.gradientDescent();
 
@@ -70,6 +69,8 @@ int main()
             std::cout << "Gradient descent has converged. Exiting." << std::endl;
             exitLoop = true;
         }
+
+        std::cout << "Iteration " << i << std::endl;
     }
 
     exitLock.lock();

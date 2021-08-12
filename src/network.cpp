@@ -19,16 +19,6 @@ void NeuralNetwork::gradientChecking() {
 }
 
 void NeuralNetwork::checkAll() {
-    /*
-    std::cout << "Printing all layers\n";
-    for(int l = 0 ; l < L ; l++) {
-        for(int i = 0 ; i < this->layerSizes[l] ; i++) {
-            std::cout << layers[l] << "\n";
-        }
-        std::cout << "\n";
-    }
-    */
-
     std::cout << "Testing all training inputs\n";
 
     for(int i = 0 ; i < m ; i++) {
@@ -62,9 +52,7 @@ float NeuralNetwork::cost() {
         *this->layers[0] = this->X->col(i);
         forwardProp();
         out = this->layers[this->L-1]->array();
-
         J += ((this->Y->col(i).array() * out.log())+(1.0 - this->Y->col(i).array()) * ((1.0 - out).log())).sum();
-
         //TODO: find a fix for perfect predictions (i.e. log(0))
     }
 
